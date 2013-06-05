@@ -1,0 +1,79 @@
+<html>
+ <head>
+  <title>PIN API - Leaflet Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+
+  <link rel="stylesheet" href="https://www.publicinsightnetwork.org/air2/lib/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://www.publicinsightnetwork.org/air2/lib/shared/slidemapper.min.css?v=220"/>
+
+  <style>
+    body { text-align: center; font-family: verdana,arial,helvetica,'sans-serif'; }
+    #map { width:800px; margin:0 auto; }
+  </style>
+
+  <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/leaflet/dist/leaflet.js?v=220"></script>
+  <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/leafpile.js?v=220"></script>
+  <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/jquery-1.7.2.min.js?v=220"></script>
+  <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/slidemapper.min.js?v=220"></script>
+
+
+  <script type="text/javascript">
+    function init_map() {
+      var librarius_uuid = 'b6f315470887';
+
+      var uri = 'https://www.publicinsightnetwork.org/air2/api/public/search?callback=?&';
+      var params = {
+        a: '840ffd8f30eabbe3294adce9d9b97c8d',  // get your own api key
+        p: 200, // lots
+        q: 'query_uuid:'+librarius_uuid+' and latitude!:NULL and longitude!:NULL'
+      };
+      uri += jQuery.param(params);
+      //console.log(uri);
+      jQuery('#stats').html('<img src="//www.publicinsightnetwork.org/source/img/loading.gif"/>');
+
+      var $mapper = $('#map').slideMapper({controlType: 'top', leafPile: true});
+      var Points = [];
+      jQuery.getJSON(uri, function(resp) {
+          //console.log(resp);
+          jQuery('#stats').html(resp.total + ' results');
+          jQuery.each(resp.results, function(idx, r) {
+              if (!r.primary_lat.length || !r.primary_long.length) {
+                  console.log('no geo for ', r);
+                  return;
+              }
+              //console.log(r);
+              var submission = [];
+              // TODO sort questions by seq attribute
+              jQuery.each(r.questions, function(qidx,q) {
+                  var answer = r.responses[qidx];
+                  submission.push('<div class="question">'+q.value+'</div>'+'<div class="response">'+answer+'</div>');
+              });
+              var msg = '<div class="submission">'+r.src_first_name+' '+r.src_last_name+'<div>'+submission.join('<br/>')+'</div></div>';
+              var point = {
+                  marker: [r.primary_lat, r.primary_long],
+                  center: [r.primary_lat, r.primary_long],
+                  zoom: 4,
+                  html: msg,
+                  popup: msg
+              };
+              Points.push(point);
+          });
+
+          //console.log(Points);
+          $mapper.slideMapper('add', Points);
+      });
+    }
+
+    jQuery(document).ready(function() {
+        init_map();
+    });
+  </script>
+
+ </head>
+ <body>
+
+  <div id="map"></div>
+  <div id="stats"></div>
+
+ </body>
+</html>
