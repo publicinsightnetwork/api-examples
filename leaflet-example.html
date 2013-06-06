@@ -42,19 +42,26 @@
                   return;
               }
               //console.log(r);
+              var where = [];
               var submission = [];
               // TODO sort questions by seq attribute
               jQuery.each(r.questions, function(qidx,q) {
                   var answer = r.responses[qidx];
                   submission.push('<div class="question">'+q.value+'</div>'+'<div class="response">'+answer+'</div>');
               });
+              if (r.primary_city) where.push(r.primary_city);
+              if (r.primary_state) where.push(r.primary_state);
+              if (r.primary_zip) where.push(r.primary_zip);
+              if (r.primary_county) where.push(r.primary_county);
+
               var msg = '<div class="submission">'+r.src_first_name+' '+r.src_last_name+'<div>'+submission.join('<br/>')+'</div></div>';
+              var balloon = '<div class="popup">'+r.src_first_name+' '+r.src_last_name+'<br/>'+where.join(', ')+'</div>';
               var point = {
                   marker: [r.primary_lat, r.primary_long],
                   center: [r.primary_lat, r.primary_long],
                   zoom: 4,
                   html: msg,
-                  popup: msg
+                  popup: balloon
               };
               Points.push(point);
           });
