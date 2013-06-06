@@ -8,24 +8,51 @@
 
   <style>
     body { text-align: center; font-family: verdana,arial,helvetica,'sans-serif'; }
-    #map { width:800px; margin:0 auto; }
+    #map { width:800px; margin:0 auto; border: 1px solid #666; }
+    #stats { padding: 16px; }
+    .submission { text-align: left; padding: 24px; max-width: 600px; }
+    .source     { font-style: italic; font-size: 95%; }
+    .question   { font-weight: bold; }
   </style>
 
   <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/leaflet/dist/leaflet.js?v=220"></script>
   <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/leafpile.js?v=220"></script>
   <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/jquery-1.7.2.min.js?v=220"></script>
   <script type="text/javascript" src="https://www.publicinsightnetwork.org/air2/lib/shared/slidemapper.min.js?v=220"></script>
+  <script type="text/javascript" src="https://www.publicinsightnetwork.org/source/js/insights.js"></script>
 
 
   <script type="text/javascript">
+  
+    // courtesy of http://codereview.stackexchange.com/questions/9574/faster-and-cleaner-way-to-parse-parameters-from-url-in-javascript-jquery
+    function parseQueryString() {
+        var query = (window.location.search || '?').substr(1),
+            map   = {};
+        query.replace(/([^&=]+)=?([^&]*)(?:&+|$)/g, function(match, key, value) {
+            (map[key] = map[key] || []).push(value);
+        });
+        return map;
+    }
+    
     function init_map() {
-      var librarius_uuid = 'b6f315470887';
+      
+      // these are the Librarius values, but allow for override via url
+      var query_uuid = 'b6f315470887';
+      var ques_uuid  = 'f2c1da7d3772';
+      var winParams = parseQueryString();
+      if (winParams['query_uuid']) {
+        query_uuid = winParams['query_uuid'];
+      }
+      if (winParams['ques_uuid']) {
+        ques_uuid  = winParams['ques_uuid'];
+      }
 
       var uri = 'https://www.publicinsightnetwork.org/air2/api/public/search?callback=?&';
       var params = {
         a: '840ffd8f30eabbe3294adce9d9b97c8d',  // get your own api key
-        p: 200, // lots
-        q: 'query_uuid:'+librarius_uuid+' and latitude!:NULL and longitude!:NULL'
+        p: 500, // lots
+        s: 'lastmod DESC',  // most recent first
+        q: 'query_uuid:'+query_uuid+' and latitude!:NULL and longitude!:NULL'
       };
       uri += jQuery.param(params);
       //console.log(uri);
@@ -33,9 +60,11 @@
 
       var $mapper = $('#map').slideMapper({controlType: 'top', leafPile: true});
       var Points = [];
+      var sortedQuestions = [];
       jQuery.getJSON(uri, function(resp) {
           //console.log(resp);
-          jQuery('#stats').html(resp.total + ' results');
+          jQuery('#stats').html(resp.results.length+' of '+resp.total+
+            ' results for<br/><a href="http://pinsight.org/q/'+query_uuid+'">'+resp.results[0].query_title+'</a>');
           jQuery.each(resp.results, function(idx, r) {
               if (!r.primary_lat.length || !r.primary_long.length) {
                   console.log('no geo for ', r);
@@ -44,9 +73,23 @@
               //console.log(r);
               var where = [];
               var submission = [];
-              // TODO sort questions by seq attribute
-              jQuery.each(r.questions, function(qidx,q) {
-                  var answer = r.responses[qidx];
+              if (!sortedQuestions.length) {
+                sortedQuestions = PIN.Insights.sortQuestions(r);
+                //console.log(sortedQuestions);
+              }
+              
+              jQuery.each(sortedQuestions, function(qidx,q) {
+              
+                  // sortedQuestions is a sparse array so must check for defined
+                  if (!q) return;
+              
+                  // limit the displayed submission to one question/answer pair.
+                  // to show all pairs, just comment out the 'return' statement.
+                  if (q.uuid != ques_uuid) {
+                    //return; // comment this out to show all responses
+                  }
+                  
+                  var answer = r.responses[q.uuid];
                   submission.push('<div class="question">'+q.value+'</div>'+'<div class="response">'+answer+'</div>');
               });
               if (r.primary_city) where.push(r.primary_city);
@@ -54,7 +97,7 @@
               if (r.primary_zip) where.push(r.primary_zip);
               if (r.primary_county) where.push(r.primary_county);
 
-              var msg = '<div class="submission">'+r.src_first_name+' '+r.src_last_name+'<div>'+submission.join('<br/>')+'</div></div>';
+              var msg = '<div class="submission"><div class="source">'+r.src_first_name+' '+r.src_last_name+' - '+r.srs_date+'</div><div>'+submission.join('<br/>')+'</div></div>';
               var balloon = '<div class="popup">'+r.src_first_name+' '+r.src_last_name+'<br/>'+where.join(', ')+'</div>';
               var point = {
                   marker: [r.primary_lat, r.primary_long],
@@ -79,8 +122,8 @@
  </head>
  <body>
 
-  <div id="map"></div>
   <div id="stats"></div>
+  <div id="map"></div>
 
  </body>
 </html>
